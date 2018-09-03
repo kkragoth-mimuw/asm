@@ -1,6 +1,8 @@
 ; intel2gas ps347277.asm > b.asm; clang -c -nostdlib -o b.o b.asm
 
 global copy_safely
+global compression
+global epilogue
 
 ; eax - zmienne
 ; esi - i
@@ -17,6 +19,8 @@ copy_safely:
     push edi
     push ebx
 
+    jmp .epilogue
+
 .copy_safely_cipher:
     mov esi, 0
     mov edi, 0
@@ -29,8 +33,10 @@ copy_safely:
     jl .cipher_loop
 
 .epilogue:
-    call .compression
+    nop
+    jmp compression
 
+.end:
     pop ebx
     pop edi
     pop edi
@@ -141,8 +147,7 @@ copy_safely:
     add esi, 1
     jmp .check_if_buffer_len
 
-
-.compression:
+compression:
     xor eax, eax
     xor ebx, ebx
     xor ecx, ecx; c
@@ -155,7 +160,7 @@ copy_safely:
 .compression_loop:
     xor edi, edi; occurences = 0
     mov eax, [ebp + 12]
-    cmp esi, eax
+    cmp esi, [eax]
     jge .compression_epilogue
 
     xor ecx, ecx
@@ -165,23 +170,24 @@ copy_safely:
     push ecx      ; save char on stack
 
 .occurences_loop:
-    cmp cl [eax + edi]
+    mov eax, [ebp + 8]
+    cmp cl, [eax + esi]
     jne .occurences_loop_break
     add edi, 1     ; occurences++
     add esi, 1     ; i++
     jmp .occurences_loop
 
 .occurences_loop_break:
-    cmp edx, 1
+    cmp edi, 1
     jle .compression_loop
 
 .pushing_number_on_stack:
-    cmp edi 0
-    je occurences_loop
+    cmp edi, 0
+    je .occurences_loop
 
     xor eax, eax
     xor edx, edx
-    mov ax, edi
+    mov eax, edi
     mov bx, 10
     div bx
 
@@ -191,15 +197,12 @@ copy_safely:
     mov edi, eax
     jmp .pushing_number_on_stack
 
-.occurences_epilogue:
-
-
 .compression_epilogue:
     xor edi, edi
 
-.epilogue_loop
+.epilogue_loop:
     pop ebx
-    cmp ebx 0
+    cmp ebx, 0
     je .compression_end
 
     mov eax, [ebp + 8]
@@ -208,6 +211,31 @@ copy_safely:
     jmp .epilogue_loop
     
 
-.compression_end
-    ret
+.compression_end:
+    mov byte [eax + edi], 0
+    mov eax, [ebp + 12]
+    mov [eax], edi
+    ; jmp copy_safely.end
+
+.reverse_string:
+    sub edi, 1
+    xor esi, esi
+.revere_string_loop:
+    cmp esi, edi
+    jge copy_safely.end
+
+    mov eax, [ebp + 8]
+    xor ebx, ebx
+    mov bl, [eax + edi]
+
+    xor ecx, ecx
+    mov cl, [eax + esi]
+
+    mov [eax + esi], bl
+    mov [eax + edi], cl
+
+    add esi, 1
+    sub edi, 1
+
+    jmp .revere_string_loop
 

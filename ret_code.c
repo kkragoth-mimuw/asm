@@ -7,8 +7,9 @@
 uint32_t copy_safely(char *buffer, uint32_t *buffer_len, const char *key, uint32_t key_len);
 
 int main() {
-    char buffer1[] = "abCzX";
+    char buffer1[] = "aaaaaaaaaaaaaaaaaaabbc";
     uint32_t buffer1_len = strlen(buffer1);
+    printf("leng: ", buffer1_len);
 
     char key1[] = "dE35";
     uint32_t key1_len = strlen(key1);
@@ -16,4 +17,5 @@ int main() {
     int r = copy_safely(buffer1, &buffer1_len, key1, key1_len);
 
     printf("%d: %s\n", r, buffer1);
+    printf("leng: %d\n", buffer1_len);
 }
