@@ -29,9 +29,6 @@ copy_safely:
     jl .cipher_loop
 
 .epilogue:
-    mov eax, [ebp + 12]
-    mov eax, [eax]
-    
     pop ebx
     pop edi
     pop edi
@@ -44,24 +41,24 @@ copy_safely:
     mov ebx, 0          ; offset = 0
 
 .key_offset:
-    mov al, [ebp + 16]
-    mov al, [eax + edi]  ; key[j]
+    xor eax, eax
+    mov edx, [ebp + 16]
+    mov byte al, [edx + edi]  ; key[j]
 
-    cmp al, 57          ;  key[j] <= '9'
+    cmp eax, 57          ;  key[j] <= '9'
     jg .key_uppercase_check
     
 .key_numerical_loop:
-    jmp .epilogue
     mov ecx, 10
 .key_numerical_check_length:
     mov eax, [ebp + 20]
     cmp edi, eax
     je .key_epilogue
 .key_numerical_is_still_numeric:
-    mov al, [ebp + 16]
-    mov al, [eax + edi]  ; key[j]
-
-    cmp al, 57          ;  key[j] <= '9'
+    xor eax, eax
+    mov edx, [ebp + 16]
+    mov byte al, [edx + edi]  ; key[j]
+    cmp eax, 57          ;  key[j] <= '9'
     jg .key_epilogue
 
 .key_multiply_offset_by_10:
@@ -72,14 +69,15 @@ copy_safely:
     jmp .key_multiply_offset_by_10
 .key_add_offset:
     xor eax, eax
-    mov al, [eax + edi]
-    sub al, 48
+    mov edx, [ebp + 16]
+    mov byte al, [edx + edi]
+    sub eax, 48
     add ebx, eax ; offset = 10*offset + key[j] - '0';
     add edi, 1
     jmp .key_numerical_loop
 
 .key_uppercase_check:
-    cmp al, 90
+    cmp eax, 90
     jg .key_lowercase_check
 
     mov ebx, eax
@@ -90,7 +88,7 @@ copy_safely:
 
 .key_lowercase_check:
     mov ebx, eax
-    sub edx, 97
+    sub ebx, 97
     add edi, 1
 
 .key_epilogue:
@@ -100,8 +98,9 @@ copy_safely:
     sub edi, eax
 
 .buffer_offset:
-    mov al, [ebp + 4]
-    mov al, [eax + esi]  ; buffer[i]
+    xor eax, eax
+    mov edx, [ebp + 8]
+    mov byte al, [edx + esi]  ; buffer[i]
     cmp eax, 90
     jg .buffer_lowercase
 
@@ -122,17 +121,18 @@ copy_safely:
     
 .apply_offset:
     xor eax, eax
-    mov al, [ebp + 4]
-    mov al, [eax + esi]  ; buffer[i]
-    cmp eax, 90
+    mov edx, [ebp + 8]
+    mov byte al, [edx + esi]  ; buffer[i]
+    cmp al, 90
     jg .apply_offset_lowercase
     add ebx, 65
-    mov [eax+esi], ebx    ; buffer[i] = 'A' + offset;
+    mov byte [edx+esi], bl    ; buffer[i] = 'A' + offset;
     jmp .apply_offset_epilogue
 
 .apply_offset_lowercase:
     add ebx, 97
-    mov [eax+esi], ebx    ; buffer[i] = 'a' + offset;
+    add eax, esi
+    mov byte [edx+esi], bl    ; buffer[i] = 'a' + offset;
     jmp .apply_offset_epilogue
 
 .apply_offset_epilogue:
