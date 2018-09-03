@@ -162,24 +162,23 @@ compression:
     xor eax, eax
     xor ebx, ebx
     xor ecx, ecx; c
-    xor edx, edx;
+    xor edx, edx; idea
     xor esi, esi; i
     xor edi, edi; occurences
 
-    push eax       ; STACK GUARD
-
 .compression_loop:
-    xor edi, edi; occurences = 0
+    xor edi, edi
     mov eax, [ebp + 12]
     cmp esi, [eax]
-    jge .compression_epilogue
+    jge .compression_end
 
     xor ecx, ecx
     mov eax, [ebp + 8]
     mov cl, [eax + esi]
 
-    push ecx      ; save char on stack
-
+    mov [eax + edx], cl
+    add edx, 1
+    
 .occurences_loop:
     mov eax, [ebp + 8]
     cmp cl, [eax + esi]
@@ -191,12 +190,13 @@ compression:
 .occurences_loop_break:
     cmp edi, 1
     jle .compression_loop
-    call .pushing_number_on_stack
-    jmp .occurences_loop
 
-; recursive
-.pushing_number_on_stack:
+    push esi
+    mov esi, edx
+    xor edx, edx
     push edx
+
+.pushing_number_on_stack:
     cmp edi, 0
     je .pushing_number_return
 
@@ -207,52 +207,33 @@ compression:
     div bx
 
     add edx, 48
-
     mov edi, eax
-    call .pushing_number_on_stack
+
     push edx
+
+    jmp .pushing_number_on_stack
+
 .pushing_number_return:
-    pop edx 
-    ret
-
-.compression_epilogue:
-    xor edi, edi
-
-.epilogue_loop:
-    pop ebx
-    cmp ebx, 0
-    je .compression_end
-
     mov eax, [ebp + 8]
-    mov [eax + edi], bl
-    add edi, 1
-    jmp .epilogue_loop
-    
-
-.compression_end:
-    mov byte [eax + edi], 0
-    mov eax, [ebp + 12]
-    mov [eax], edi
-
-.reverse_string:
-    sub edi, 1
-    xor esi, esi
-.revere_string_loop:
-    cmp esi, edi
-    jge copy_safely.end
-
-    mov eax, [ebp + 8]
-    xor ebx, ebx
-    mov bl, [eax + edi]
-
-    xor ecx, ecx
-    mov cl, [eax + esi]
-
-    mov [eax + esi], bl
-    mov [eax + edi], cl
-
+    pop edx
+    cmp edx, 0
+    je .pushing_number_return_restore
+    mov [eax + esi], dl
     add esi, 1
-    sub edi, 1
+    jmp .pushing_number_return
 
-    jmp .revere_string_loop
+.pushing_number_return_restore:
+    mov edx, esi
+    pop esi
+    jmp .compression_loop
+    
+.compression_end:
+    mov eax, [ebp + 12]
+    cmp [eax], edx
+    je .compression_returning
+    mov [eax], edx
+    mov eax, [ebp + 8]
+    mov byte [eax + edx], 0
 
+.compression_returning:
+    jmp copy_safely.end
