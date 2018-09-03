@@ -1,5 +1,7 @@
 ; intel2gas ps347277.asm > b.asm; clang -c -nostdlib -o b.o b.asm
 
+extern copy_to_clipboard
+
 global copy_safely
 global compression
 global epilogue
@@ -13,13 +15,11 @@ copy_safely:
     push ebp
     mov ebp, esp
     
-    ; and  esp, 0xfffffff0
-    
     push esi
     push edi
     push ebx
 
-    jmp .epilogue
+    jmp compression
 
 .copy_safely_cipher:
     mov esi, 0
@@ -37,6 +37,17 @@ copy_safely:
     jmp compression
 
 .end:
+    mov ebx, [ebp + 12]
+    mov eax, [ebx]
+    push eax
+
+    mov ecx, [ebp + 8]
+    push ecx
+
+    ; call copy_to_clipboard
+
+    add esp, 8
+
     pop ebx
     pop edi
     pop edi
@@ -180,10 +191,14 @@ compression:
 .occurences_loop_break:
     cmp edi, 1
     jle .compression_loop
+    call .pushing_number_on_stack
+    jmp .occurences_loop
 
+; recursive
 .pushing_number_on_stack:
+    push edx
     cmp edi, 0
-    je .occurences_loop
+    je .pushing_number_return
 
     xor eax, eax
     xor edx, edx
@@ -192,10 +207,13 @@ compression:
     div bx
 
     add edx, 48
-    push edx
 
     mov edi, eax
-    jmp .pushing_number_on_stack
+    call .pushing_number_on_stack
+    push edx
+.pushing_number_return:
+    pop edx 
+    ret
 
 .compression_epilogue:
     xor edi, edi
@@ -215,7 +233,6 @@ compression:
     mov byte [eax + edi], 0
     mov eax, [ebp + 12]
     mov [eax], edi
-    ; jmp copy_safely.end
 
 .reverse_string:
     sub edi, 1
