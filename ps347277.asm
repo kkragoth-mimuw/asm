@@ -29,6 +29,8 @@ copy_safely:
     jl .cipher_loop
 
 .epilogue:
+    call .compression
+
     pop ebx
     pop edi
     pop edi
@@ -43,7 +45,7 @@ copy_safely:
 .key_offset:
     xor eax, eax
     mov edx, [ebp + 16]
-    mov byte al, [edx + edi]  ; key[j]
+    mov al, [edx + edi]  ; key[j]
 
     cmp eax, 57          ;  key[j] <= '9'
     jg .key_uppercase_check
@@ -57,7 +59,7 @@ copy_safely:
 .key_numerical_is_still_numeric:
     xor eax, eax
     mov edx, [ebp + 16]
-    mov byte al, [edx + edi]  ; key[j]
+    mov al, [edx + edi]  ; key[j]
     cmp eax, 57          ;  key[j] <= '9'
     jg .key_epilogue
 
@@ -70,7 +72,7 @@ copy_safely:
 .key_add_offset:
     xor eax, eax
     mov edx, [ebp + 16]
-    mov byte al, [edx + edi]
+    mov al, [edx + edi]
     sub eax, 48
     add ebx, eax ; offset = 10*offset + key[j] - '0';
     add edi, 1
@@ -100,7 +102,7 @@ copy_safely:
 .buffer_offset:
     xor eax, eax
     mov edx, [ebp + 8]
-    mov byte al, [edx + esi]  ; buffer[i]
+    mov al, [edx + esi]  ; buffer[i]
     cmp eax, 90
     jg .buffer_lowercase
 
@@ -122,19 +124,90 @@ copy_safely:
 .apply_offset:
     xor eax, eax
     mov edx, [ebp + 8]
-    mov byte al, [edx + esi]  ; buffer[i]
+    mov al, [edx + esi]  ; buffer[i]
     cmp al, 90
     jg .apply_offset_lowercase
     add ebx, 65
-    mov byte [edx+esi], bl    ; buffer[i] = 'A' + offset;
+    mov [edx+esi], bl    ; buffer[i] = 'A' + offset;
     jmp .apply_offset_epilogue
 
 .apply_offset_lowercase:
     add ebx, 97
     add eax, esi
-    mov byte [edx+esi], bl    ; buffer[i] = 'a' + offset;
+    mov [edx+esi], bl    ; buffer[i] = 'a' + offset;
     jmp .apply_offset_epilogue
 
 .apply_offset_epilogue:
     add esi, 1
     jmp .check_if_buffer_len
+
+
+.compression:
+    xor eax, eax
+    xor ebx, ebx
+    xor ecx, ecx; c
+    xor edx, edx;
+    xor esi, esi; i
+    xor edi, edi; occurences
+
+    push eax       ; STACK GUARD
+
+.compression_loop:
+    xor edi, edi; occurences = 0
+    mov eax, [ebp + 12]
+    cmp esi, eax
+    jge .compression_epilogue
+
+    xor ecx, ecx
+    mov eax, [ebp + 8]
+    mov cl, [eax + esi]
+
+    push ecx      ; save char on stack
+
+.occurences_loop:
+    cmp cl [eax + edi]
+    jne .occurences_loop_break
+    add edi, 1     ; occurences++
+    add esi, 1     ; i++
+    jmp .occurences_loop
+
+.occurences_loop_break:
+    cmp edx, 1
+    jle .compression_loop
+
+.pushing_number_on_stack:
+    cmp edi 0
+    je occurences_loop
+
+    xor eax, eax
+    xor edx, edx
+    mov ax, edi
+    mov bx, 10
+    div bx
+
+    add edx, 48
+    push edx
+
+    mov edi, eax
+    jmp .pushing_number_on_stack
+
+.occurences_epilogue:
+
+
+.compression_epilogue:
+    xor edi, edi
+
+.epilogue_loop
+    pop ebx
+    cmp ebx 0
+    je .compression_end
+
+    mov eax, [ebp + 8]
+    mov [eax + edi], bl
+    add edi, 1
+    jmp .epilogue_loop
+    
+
+.compression_end
+    ret
+
